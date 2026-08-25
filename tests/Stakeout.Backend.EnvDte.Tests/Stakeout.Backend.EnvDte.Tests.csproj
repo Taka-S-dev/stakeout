@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>Stakeout.Backend.EnvDte.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Stakeout.Backend.EnvDte\Stakeout.Backend.EnvDte.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <InternalsVisibleTo Include="Stakeout.Backend.EnvDte.Tests" />
+  </ItemGroup>
+
+</Project>

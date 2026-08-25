@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    RPC の契約。Daemon / Cli / Mcp が共有する（design.md §19）。
+    依存を持たない。ここに置いた型はそのままワイヤ表現になる。
+  -->
+  <PropertyGroup>
+    <RootNamespace>Stakeout.Rpc</RootNamespace>
+  </PropertyGroup>
+
+</Project>

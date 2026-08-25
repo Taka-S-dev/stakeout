@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>stakeoutd</AssemblyName>
+    <RootNamespace>Stakeout.Daemon</RootNamespace>
+
+    <!-- EnvDTE Backend が COM と Win32 を使うため Windows 向けにする -->
+    <TargetFramework>net8.0-windows</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="StreamJsonRpc" Version="2.25.29" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Stakeout.Backend.EnvDte\Stakeout.Backend.EnvDte.csproj" />
+    <ProjectReference Include="..\Stakeout.Core\Stakeout.Core.csproj" />
+    <ProjectReference Include="..\Stakeout.Rpc\Stakeout.Rpc.csproj" />
+  </ItemGroup>
+
+</Project>

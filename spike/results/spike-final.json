@@ -1,0 +1,207 @@
+{
+  "vs": {
+    "ProgId": "VisualStudio.DTE.18.0",
+    "Version": "18.0",
+    "Pid": 101592
+  },
+  "targetPid": 8772,
+  "libSource": "samples\\target\\NativeLib\\nativelib.c",
+  "comRetries": 5,
+  "results": [
+    {
+      "Id": "S1",
+      "Title": "ROT 走査 / DTE 取得 / メッセージフィルタ",
+      "Status": "ok",
+      "Summary": "VS 18.0 (pid 101592) に接続。COM 呼び出し 1 回 0.048 ms",
+      "Details": {
+        "moniker": "!VisualStudio.DTE.18.0:101592",
+        "progId": "VisualStudio.DTE.18.0",
+        "vsPid": 101592,
+        "version": "18.0",
+        "edition": "Community",
+        "solution": "(none)",
+        "debugMode": "dbgDesignMode",
+        "comCallMs": 0.048,
+        "retriesDuringProbe": 0
+      }
+    },
+    {
+      "Id": "S2",
+      "Title": "アタッチ / 行ブレークポイント / 式評価",
+      "Status": "ok",
+      "Summary": "C 構造体のメンバを読めた",
+      "Details": {
+        "attach": {
+          "localProcessCount": 618,
+          "targetName": "samples\\target\\build\\x64\\Harness.exe",
+          "isProcess2": true,
+          "attempts": [
+            {
+              "strategy": "Attach2(\u0022Native\u0022)",
+              "result": "throw",
+              "exception": {
+                "type": "System.Runtime.InteropServices.COMException",
+                "message": "0x8971001E",
+                "hresult": "0x8971001E"
+              }
+            },
+            {
+              "strategy": "Attach2(string[]{\u0022Native\u0022})",
+              "result": "throw",
+              "exception": {
+                "type": "System.Runtime.InteropServices.COMException",
+                "message": "0x8971001E",
+                "hresult": "0x8971001E"
+              }
+            },
+            {
+              "strategy": "Attach2(\u0022Native Code\u0022)",
+              "result": "throw",
+              "exception": {
+                "type": "System.Runtime.InteropServices.COMException",
+                "message": "0x8971001E",
+                "hresult": "0x8971001E"
+              }
+            },
+            {
+              "strategy": "Attach()",
+              "result": "ok"
+            }
+          ],
+          "result": "Attach()"
+        },
+        "bpLocation": "nativelib.c:40",
+        "bpEnabled": true,
+        "bpFileLine": "nativelib.c:40",
+        "stoppedAt": "nl_update_state",
+        "stoppedThread": 87076,
+        "threadCount": 6,
+        "values": {
+          "g_ctx.state": "1",
+          "g_ctx.tick": "1482753",
+          "g_ctx.name": "0x00007ff92cbc8788 \u0022final\u0022",
+          "g_ctx.inner.flags": "2779096485",
+          "g_ctx.self-\u003Einner.id": "1",
+          "\u0026g_shared.counter": "0x00007ff92cbc8268 {NativeLib.dll!Shared g_shared} {195948583}",
+          "g_shared.counter": "195948583"
+        },
+        "evalMsPerExpr": 6.3,
+        "gCtxMembers": {
+          "state": {
+            "type": "int",
+            "value": "1",
+            "children": 0
+          },
+          "tick": {
+            "type": "unsigned int",
+            "value": "1482753",
+            "children": 0
+          },
+          "name": {
+            "type": "char[32]",
+            "value": "0x00007ff92cbc8788 \u0022final\u0022",
+            "children": 32
+          },
+          "inner": {
+            "type": "Inner",
+            "value": "{id=1 flags=2779096485 }",
+            "children": 2
+          },
+          "self": {
+            "type": "Ctx *",
+            "value": "0x00007ff92cbc8780 {NativeLib.dll!Ctx g_ctx} {state=1 tick=1482753 name=0x00007ff92cbc8788 \u0022final\u0022 ...}",
+            "children": 5
+          }
+        },
+        "allStacks": {
+          "threads": 6,
+          "frames": 34,
+          "elapsedMs": 135.8,
+          "msPerFrame": 3.993
+        }
+      }
+    },
+    {
+      "Id": "S3",
+      "Title": "データブレークポイント",
+      "Status": "ok",
+      "Summary": "データ BP を張れて、書き込みで停止した",
+      "Details": {
+        "attempts": [
+          {
+            "form": "module-qualified",
+            "data": "{,,NativeLib.dll}\u0026g_shared.counter",
+            "count": 4,
+            "result": "追加されなかった（例外なし・件数 0）"
+          },
+          {
+            "form": "\u0026expr",
+            "data": "\u0026g_shared.counter",
+            "count": 4,
+            "result": "追加されなかった（例外なし・件数 0）"
+          },
+          {
+            "form": "expr",
+            "data": "g_shared.counter",
+            "count": 4,
+            "result": "added",
+            "bpName": "\u00270x000000000BADF027\u0027 がに (4 バイト)変わった場合",
+            "bpEnabled": true
+          }
+        ],
+        "address": "0x00007ff92cbc8268 {NativeLib.dll!Shared g_shared} {195948583}",
+        "bareAddress": "0x00007ff92cbc8268",
+        "hit": true,
+        "hitFunction": "nl_bump_counter",
+        "hitThread": 86844,
+        "counterAfter": "195948558",
+        "lastHitName": "\u00270x00007FF92CBC8268\u0027 がに (4 バイト)変わった場合"
+      }
+    },
+    {
+      "Id": "S4",
+      "Title": "トレースポイントと出力回収",
+      "Status": "ok",
+      "Summary": "15.0 秒で 38 ヒット (3 hits/s), 式評価=True",
+      "Details": {
+        "messageSet": "DBGD|{g_ctx.state}|{g_ctx.tick}|$TID|$FUNCTION",
+        "breakWhenHit": false,
+        "outputPanes": [
+          "ソース管理 - Team Foundation",
+          "ビルド",
+          "ビルドの順序",
+          "データベース出力",
+          "テスト",
+          "ソース管理",
+          "デバッグ",
+          "GitHub Copilot",
+          "ホット リロード"
+        ],
+        "tracePane": "デバッグ",
+        "hitCount": 38,
+        "hitsPerSecond": 2.5,
+        "sampleLines": [
+          "DBGD|3|1484096|87076|nl_update_state(int)",
+          "DBGD|0|1484097|87076|nl_update_state(int)",
+          "DBGD|1|1484098|87076|nl_update_state(int)"
+        ],
+        "measuredSeconds": 15.01,
+        "paneTextChars": 2538,
+        "expressionsEvaluated": true
+      }
+    },
+    {
+      "Id": "S5",
+      "Title": "OnEnterBreakMode の配送信頼性",
+      "Status": "ok",
+      "Summary": "20 回の break/go でイベント取りこぼし 0 回、中断できず 0 回",
+      "Details": {
+        "rounds": 20,
+        "breakEventsReceived": 20,
+        "modeReachedButNoEvent": 0,
+        "modeNotReached": 0,
+        "msPerBreakGoCycle": 33.4
+      }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    ドメインモデル・Backend インターフェース・設定・ログ・ページング。
+    COM を知らない（design.md §21）。契約の型は Stakeout.Rpc のものを再利用し、
+    同じ意味の型を二重に定義しない。
+  -->
+  <PropertyGroup>
+    <RootNamespace>Stakeout.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Stakeout.Rpc\Stakeout.Rpc.csproj" />
+  </ItemGroup>
+
+</Project>

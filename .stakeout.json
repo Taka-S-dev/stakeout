@@ -1,0 +1,10 @@
+{
+  // 検証用の設定。samples/target の Harness だけにアタッチを許す
+  "backend": "envdte",
+  "allowProcesses": ["^Harness\\.exe$"],
+  "allowLaunch": false,
+  "code": { "gtagsRoot": "samples/target" },
+  "tasks": {
+    "taskEntryPatterns": [ { "pattern": "^Task_(\\w+)_Main$", "name": "$1" } ]
+  }
+}

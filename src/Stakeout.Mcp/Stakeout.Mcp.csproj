@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    MCP の stdio サーバー（design.md §4.1）。stakeout の RPC への薄いアダプタ。
+    シェルを持つクライアントでは CLI で足りる（design.md §4.3）。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>stakeout-mcp</AssemblyName>
+    <RootNamespace>Stakeout.Mcp</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Stakeout.Client\Stakeout.Client.csproj" />
+    <ProjectReference Include="..\Stakeout.Core\Stakeout.Core.csproj" />
+    <ProjectReference Include="..\Stakeout.Rpc\Stakeout.Rpc.csproj" />
+  </ItemGroup>
+
+</Project>

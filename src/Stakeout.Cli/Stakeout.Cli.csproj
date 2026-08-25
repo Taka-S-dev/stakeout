@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>stakeout</AssemblyName>
+    <RootNamespace>Stakeout.Cli</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" Version="2.0.6" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Stakeout.Client\Stakeout.Client.csproj" />
+    <ProjectReference Include="..\Stakeout.Rpc\Stakeout.Rpc.csproj" />
+  </ItemGroup>
+
+</Project>

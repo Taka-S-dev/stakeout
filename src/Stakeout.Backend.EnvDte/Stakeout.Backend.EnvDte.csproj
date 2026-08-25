@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Visual Studio に COM で繋ぐ Backend（design.md §10）。
+    COM はこのプロジェクトの外に漏らさない（design.md §21）。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>Stakeout.Backend.EnvDte</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.VisualStudio.Interop" Version="17.10.40170" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Stakeout.Core\Stakeout.Core.csproj" />
+    <ProjectReference Include="..\Stakeout.Rpc\Stakeout.Rpc.csproj" />
+  </ItemGroup>
+
+</Project>

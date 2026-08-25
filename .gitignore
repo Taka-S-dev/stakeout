@@ -1,0 +1,88 @@
+# ホワイトリスト方式。既定ですべて無視し、追跡するものを**場所ごとに**明示する。
+#
+# **拡張子だけで許可しない。** このリポジトリは *.json と *.md を必要としており、
+# 機密や手元の道具の設定はまさにその拡張子を着て現れる。場所で絞れば、
+# 想定していない場所に置かれたものは、名前を列挙しなくても既定で落ちる。
+
+*
+!*/
+
+# --- リポジトリ直下。ここは 1 つずつ挙げる ---
+!/.gitignore
+!/.stakeout.json
+!/LICENSE
+!/README.md
+!/CONTRIBUTING.md
+!/Stakeout.sln
+!/Directory.Build.props
+
+# --- 実装 ---
+!/src/**/*.cs
+!/src/**/*.csproj
+
+# --- テスト ---
+!/tests/**/*.cs
+!/tests/**/*.csproj
+!/tests/**/*.ps1
+!/tests/**/*.md
+
+# --- スパイク（使い捨ての検証。結果も残す。ADR 0003）---
+!/spike/**/*.cs
+!/spike/**/*.csproj
+!/spike/**/*.json
+!/spike/**/*.md
+
+# --- 文書と調査の型 ---
+!/docs/**/*.md
+!/skills/**/*.md
+
+# --- 評価スイート ---
+!/eval/**/*.ps1
+!/eval/**/*.md
+
+# --- サンプル Target ---
+!/samples/**/*.c
+!/samples/**/*.h
+!/samples/**/*.ps1
+!/samples/**/*.md
+
+# --- 上で拾ってしまうものを落とす ---
+
+# ビルド生成物。obj には生成された .cs と .json が入るため、
+# 拡張子だけでは防げない
+bin/
+obj/
+.vs/
+samples/target/build/
+
+# gtags の索引。機械が作るもので、索引した場所に依存する
+GTAGS
+GRTAGS
+GPATH
+
+# 手元だけの設定
+.stakeout.local.json
+
+# --- 機密の再拒否 ---
+# **場所で絞ってもなお、許可した場所の中に機密が置かれうる。**
+# ただし断片一致にはしない。*secret* だけで書くと SecretsPanel.cs のような
+# 正当なソースまで落ち、しかも git add が黙って無視するので気づけない。
+# **機密が漏れるより静かな失敗であり、そちらのほうが悪い。**
+# だから、機密が実際に着てくるデータ形式に限って落とす。
+# 先頭 1 文字を外してあるのは、Secrets と secrets の両方に当てるためである。
+.env
+.env.*
+*.pem
+*.pfx
+*.p12
+*.key
+id_rsa*
+id_ed25519*
+*ecret*.json
+*ecret*.txt
+*ecret*.ps1
+*redential*.json
+*redential*.txt
+*oken*.json
+*oken*.txt
+appsettings.*.local.json

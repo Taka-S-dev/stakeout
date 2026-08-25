@@ -1,0 +1,90 @@
+{
+  "vs": {
+    "ProgId": "VisualStudio.DTE.18.0",
+    "Version": "18.0",
+    "Pid": 101592
+  },
+  "targetPid": 102164,
+  "libSource": "samples\\target\\NativeLib\\nativelib.c",
+  "comRetries": 0,
+  "results": [
+    {
+      "Id": "S1",
+      "Title": "ROT 走査 / DTE 取得 / メッセージフィルタ",
+      "Status": "ok",
+      "Summary": "VS 18.0 (pid 101592) に接続。COM 呼び出し 1 回 0.056 ms",
+      "Details": {
+        "moniker": "!VisualStudio.DTE.18.0:101592",
+        "progId": "VisualStudio.DTE.18.0",
+        "vsPid": 101592,
+        "version": "18.0",
+        "edition": "Community",
+        "solution": "(none)",
+        "debugMode": "dbgDesignMode",
+        "comCallMs": 0.0559,
+        "retriesDuringProbe": 0
+      }
+    },
+    {
+      "Id": "S2",
+      "Title": "アタッチ / 行ブレークポイント / 式評価",
+      "Status": "fail",
+      "Summary": "0x8971001E",
+      "Details": {
+        "exception": {
+          "type": "System.Runtime.InteropServices.COMException",
+          "message": "0x8971001E",
+          "hresult": "0x8971001E"
+        }
+      }
+    },
+    {
+      "Id": "S3",
+      "Title": "データブレークポイント",
+      "Status": "skip",
+      "Summary": "中断モードでないため試行できない（データ BP は中断中にしか張れない）",
+      "Details": {
+        "attempts": []
+      }
+    },
+    {
+      "Id": "S4",
+      "Title": "トレースポイントと出力回収",
+      "Status": "fail",
+      "Summary": "現時点ではメソッドを実行することができません。",
+      "Details": {
+        "messageSet": "DBGD|{g_ctx.state}|{g_ctx.tick}|$TID|$FUNCTION",
+        "breakWhenHit": false,
+        "outputPanes": [
+          "ソース管理 - Team Foundation",
+          "ビルド",
+          "ビルドの順序",
+          "データベース出力",
+          "テスト",
+          "ソース管理",
+          "デバッグ",
+          "GitHub Copilot"
+        ],
+        "exception": {
+          "type": "System.Runtime.InteropServices.COMException",
+          "message": "現時点ではメソッドを実行することができません。",
+          "hresult": "0x89711007"
+        }
+      }
+    },
+    {
+      "Id": "S5",
+      "Title": "OnEnterBreakMode の配送信頼性",
+      "Status": "fail",
+      "Summary": "現時点ではメソッドを実行することができません。",
+      "Details": {
+        "rounds": 20,
+        "exception": {
+          "type": "System.Runtime.InteropServices.COMException",
+          "message": "現時点ではメソッドを実行することができません。",
+          "hresult": "0x89711007"
+        }
+      }
+    }
+  ]
+}

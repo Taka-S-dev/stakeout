@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    デーモンへの接続。CLI と MCP アダプタが共有する（design.md §19）。
+    どちらも「パイプに繋いで 1 回呼ぶ」だけなので、2 か所に書かない。
+  -->
+  <PropertyGroup>
+    <RootNamespace>Stakeout.Client</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="StreamJsonRpc" Version="2.25.29" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Stakeout.Rpc\Stakeout.Rpc.csproj" />
+  </ItemGroup>
+
+</Project>

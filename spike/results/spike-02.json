@@ -1,0 +1,196 @@
+{
+  "vs": {
+    "ProgId": "VisualStudio.DTE.18.0",
+    "Version": "18.0",
+    "Pid": 101592
+  },
+  "targetPid": 102164,
+  "libSource": "samples\\target\\NativeLib\\nativelib.c",
+  "comRetries": 6,
+  "results": [
+    {
+      "Id": "S1",
+      "Title": "ROT 走査 / DTE 取得 / メッセージフィルタ",
+      "Status": "ok",
+      "Summary": "VS 18.0 (pid 101592) に接続。COM 呼び出し 1 回 0.043 ms",
+      "Details": {
+        "moniker": "!VisualStudio.DTE.18.0:101592",
+        "progId": "VisualStudio.DTE.18.0",
+        "vsPid": 101592,
+        "version": "18.0",
+        "edition": "Community",
+        "solution": "(none)",
+        "debugMode": "dbgDesignMode",
+        "comCallMs": 0.0431,
+        "retriesDuringProbe": 0
+      }
+    },
+    {
+      "Id": "S2",
+      "Title": "アタッチ / 行ブレークポイント / 式評価",
+      "Status": "partial",
+      "Summary": "停止はしたが期待値が読めなかった",
+      "Details": {
+        "attach": {
+          "localProcessCount": 605,
+          "targetName": "samples\\target\\build\\x64\\Harness.exe",
+          "isProcess2": true,
+          "attempts": [
+            {
+              "strategy": "Attach2(\u0022Native\u0022)",
+              "result": "throw",
+              "exception": {
+                "type": "System.Runtime.InteropServices.COMException",
+                "message": "0x8971001E",
+                "hresult": "0x8971001E"
+              }
+            },
+            {
+              "strategy": "Attach2(string[]{\u0022Native\u0022})",
+              "result": "throw",
+              "exception": {
+                "type": "System.Runtime.InteropServices.COMException",
+                "message": "0x8971001E",
+                "hresult": "0x8971001E"
+              }
+            },
+            {
+              "strategy": "Attach2(\u0022Native Code\u0022)",
+              "result": "throw",
+              "exception": {
+                "type": "System.Runtime.InteropServices.COMException",
+                "message": "0x8971001E",
+                "hresult": "0x8971001E"
+              }
+            },
+            {
+              "strategy": "Attach()",
+              "result": "ok"
+            }
+          ],
+          "result": "Attach()"
+        },
+        "bpLocation": "nativelib.c:40",
+        "bpEnabled": true,
+        "bpFileLine": "nativelib.c:40",
+        "stoppedAt": "nl_update_state",
+        "stoppedThread": 86980,
+        "threadCount": 4,
+        "values": {
+          "g_ctx.state": "1",
+          "g_ctx.tick": "155037697",
+          "g_ctx.name": "0x00007ff9f5af8788 \u0022spike\u0022",
+          "g_ctx.inner.flags": "2779096485",
+          "g_ctx.self-\u003Einner.id": "1",
+          "\u0026g_shared.counter": "0x00007ff9f5af8268 {NativeLib.dll!Shared g_shared} {195948584}",
+          "g_shared.counter": "195948584"
+        },
+        "evalMsPerExpr": 5.5,
+        "gCtxMembers": {
+          "state": {
+            "type": "int",
+            "value": "1",
+            "children": 0
+          },
+          "tick": {
+            "type": "unsigned int",
+            "value": "155037697",
+            "children": 0
+          },
+          "name": {
+            "type": "char[32]",
+            "value": "0x00007ff9f5af8788 \u0022spike\u0022",
+            "children": 32
+          },
+          "inner": {
+            "type": "Inner",
+            "value": "{id=1 flags=2779096485 }",
+            "children": 2
+          },
+          "self": {
+            "type": "Ctx *",
+            "value": "0x00007ff9f5af8780 {NativeLib.dll!Ctx g_ctx} {state=1 tick=155037697 name=0x00007ff9f5af8788 \u0022spike\u0022 ...}",
+            "children": 5
+          }
+        },
+        "allStacks": {
+          "threads": 4,
+          "frames": 26,
+          "elapsedMs": 595.1,
+          "msPerFrame": 22.89
+        }
+      }
+    },
+    {
+      "Id": "S3",
+      "Title": "データブレークポイント",
+      "Status": "ok",
+      "Summary": "データ BP を張れて、書き込みで停止した",
+      "Details": {
+        "attempts": [
+          {
+            "form": "\u0026expr",
+            "data": "\u0026g_shared.counter",
+            "count": 4,
+            "result": "added",
+            "bpName": "\u00270x00007FF9F5AF8268\u0027 がに (4 バイト)変わった場合",
+            "bpEnabled": true
+          }
+        ],
+        "address": "0x00007ff9f5af8268 {NativeLib.dll!Shared g_shared} {195948584}",
+        "bareAddress": "0x00007ff9f5af8268",
+        "hit": true,
+        "hitFunction": "nl_stray_write",
+        "hitThread": 93504,
+        "counterAfter": "195948557",
+        "lastHitName": "\u00270x00007FF9F5AF8268\u0027 がに (4 バイト)変わった場合"
+      }
+    },
+    {
+      "Id": "S4",
+      "Title": "トレースポイントと出力回収",
+      "Status": "ok",
+      "Summary": "10.0 秒で 62 ヒット (6 hits/s), 式評価=True",
+      "Details": {
+        "messageSet": "DBGD|{g_ctx.state}|{g_ctx.tick}|$TID|$FUNCTION",
+        "breakWhenHit": false,
+        "outputPanes": [
+          "ソース管理 - Team Foundation",
+          "ビルド",
+          "ビルドの順序",
+          "データベース出力",
+          "テスト",
+          "ソース管理",
+          "デバッグ",
+          "GitHub Copilot",
+          "ホット リロード"
+        ],
+        "tracePane": "デバッグ",
+        "hitCount": 62,
+        "hitsPerSecond": 6.2,
+        "sampleLines": [
+          "DBGD|3|155038684|86980|nl_update_state(int)",
+          "DBGD|0|155038685|86980|nl_update_state(int)",
+          "DBGD|1|155038686|86980|nl_update_state(int)"
+        ],
+        "measuredSeconds": 10.01,
+        "paneTextChars": 3693,
+        "expressionsEvaluated": true
+      }
+    },
+    {
+      "Id": "S5",
+      "Title": "OnEnterBreakMode の配送信頼性",
+      "Status": "fail",
+      "Summary": "現時点ではメソッドを実行することができません。",
+      "Details": {
+        "rounds": 5,
+        "exception": {
+          "type": "System.Runtime.InteropServices.COMException",
+          "message": "現時点ではメソッドを実行することができません。",
+          "hresult": "0x89711007"
+        }
+      }
+    }
+  ]
+}
