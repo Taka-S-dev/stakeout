@@ -12,6 +12,11 @@ public sealed record LaunchOptions(string Exe, string[]? Args = null, string? Cw
 
 public sealed record EvalOptions(string? Format = null, int TimeoutMs = 5000);
 
+/// <param name="ExpectedAddress">
+/// データブレークポイントが監視するはずのアドレス（&amp;式 の評価結果）。
+/// 作成後にこれと照合し、違えば消して失敗させる（ADR 0006 の罠 3）。
+/// <c>Condition</c> に入れない。利用者の条件式と取り違える。
+/// </param>
 public sealed record BreakpointRequest(
     BreakpointKind Kind,
     string Location,
@@ -19,7 +24,8 @@ public sealed record BreakpointRequest(
     int? HitCount = null,
     string[]? TraceExpressions = null,
     bool TraceStack = false,
-    int DataSize = 4);
+    int DataSize = 4,
+    string? ExpectedAddress = null);
 
 /// <summary>
 /// デバッガエンジンへの接続（design.md §6）。語彙は DAP から借りる。

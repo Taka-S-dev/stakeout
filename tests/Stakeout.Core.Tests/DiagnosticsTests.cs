@@ -136,6 +136,34 @@ public sealed class EnvironmentDiagnosticsTests
         Assert.Equal(DiagnosisStatus.Skipped, EnvironmentDiagnostics.Elevation(false, null).Status);
     }
 
+    private const string SystemDbgEng = @"C:\Windows\System32\dbgeng.dll";
+
+    [Fact]
+    public void Q6_dbgeng_Backend_で_System32_版しか無ければ注意する()
+    {
+        var result = EnvironmentDiagnostics.DebuggingTools(new[] { SystemDbgEng }, SystemDbgEng, "dbgeng");
+
+        Assert.Equal(DiagnosisStatus.Caution, result.Status);
+    }
+
+    [Fact]
+    public void Q6_envdte_Backend_なら_System32_版の制約を注意に上げない()
+    {
+        var result = EnvironmentDiagnostics.DebuggingTools(new[] { SystemDbgEng }, SystemDbgEng, "envdte");
+
+        Assert.Equal(DiagnosisStatus.Answered, result.Status);
+        Assert.Contains("envdte", result.NextStep);
+    }
+
+    [Fact]
+    public void Q6_Debugging_Tools_の版があれば注意しない()
+    {
+        var tools = @"C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\dbgeng.dll";
+        var result = EnvironmentDiagnostics.DebuggingTools(new[] { tools, SystemDbgEng }, SystemDbgEng, "dbgeng");
+
+        Assert.Equal(DiagnosisStatus.Answered, result.Status);
+    }
+
     [Theory]
     [InlineData("14.44.35207", "14.28", 1)]
     [InlineData("14.28.29910", "14.28", 0)]

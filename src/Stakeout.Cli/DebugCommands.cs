@@ -94,10 +94,13 @@ internal static class DebugCommands
                     : engines.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
             };
 
+            // attach はセッションを作る側なので、デーモンを起こしてよい（MCP と同じ）。
+            // 起こさないと、最初の一手が必ず DAEMON_UNREACHABLE になる（評価で 4 件とも踏んだ）
             return Run(parseResult, jsonOption, ct, RpcMethods.SessionAttach, request, data =>
                 Console.WriteLine(
                     $"attached {Output.Get(data, "processName")} (pid {Output.Get(data, "pid")}) " +
-                    $"backend={Output.Get(data, "backend")} state={Output.Get(data, "state")}"));
+                    $"backend={Output.Get(data, "backend")} state={Output.Get(data, "state")}"),
+                autoStart: true);
         });
 
         return command;

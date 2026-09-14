@@ -441,7 +441,7 @@ public sealed class RpcHandlers
             findings.Add(ThreadDiagnostics.ConcurrentExecution(tasks));
             findings.Add(ThreadDiagnostics.ThreadNames(tasks));
             findings.Add(EnvironmentDiagnostics.Bitness(session?.Pid));
-            findings.Add(EnvironmentDiagnostics.DebuggingTools(_state.Config.DbgEng));
+            findings.Add(EnvironmentDiagnostics.DebuggingTools(_state.Config.DbgEng, _state.Config.Backend));
             findings.Add(EnvironmentDiagnostics.Elevation(StakeoutPaths.IsElevated(), VisualStudioPid()));
             findings.Add(EnvironmentDiagnostics.AddressSanitizer());
 

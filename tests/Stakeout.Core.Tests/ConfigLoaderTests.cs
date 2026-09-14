@@ -110,6 +110,53 @@ public sealed class ConfigLoaderTests : IDisposable
     }
 
     [Fact]
+    public void プロジェクト設定は親ディレクトリへ遡って探す()
+    {
+        // エージェントが cd した先でデーモンが自動起動しても、設定を読めるようにする（ADR 0023）
+        var project = Write(ConfigLoader.ProjectFileName, "{}");
+        var sub = Directory.CreateDirectory(Path.Combine(_dir, "target", "NativeLib")).FullName;
+
+        var paths = ConfigLoader.DefaultSearchPaths(sub);
+
+        Assert.Equal(project, paths[1]);
+    }
+
+    [Fact]
+    public void 遡るときは最も近いプロジェクト設定を読む()
+    {
+        Write(ConfigLoader.ProjectFileName, "{}");
+        var nearer = Directory.CreateDirectory(Path.Combine(_dir, "a")).FullName;
+        File.WriteAllText(Path.Combine(nearer, ConfigLoader.ProjectFileName), "{}");
+        var sub = Directory.CreateDirectory(Path.Combine(nearer, "b")).FullName;
+
+        Assert.Equal(Path.Combine(nearer, ConfigLoader.ProjectFileName), ConfigLoader.FindProjectFile(sub));
+    }
+
+    [Fact]
+    public void 相対の_gtagsRoot_は設定ファイルの場所を基準に解決する()
+    {
+        // 作業ディレクトリ基準で解くと、親から見つけた設定では別の場所を指す
+        var path = Write(ConfigLoader.ProjectFileName, """{ "code": { "gtagsRoot": "samples/target" } }""");
+
+        var loaded = ConfigLoader.LoadFrom(new[] { path });
+
+        Assert.Equal(Path.GetFullPath(Path.Combine(_dir, "samples", "target")), loaded.Config.Code.GtagsRoot);
+    }
+
+    [Fact]
+    public void 絶対パスの_gtagsRoot_はそのまま使う()
+    {
+        var absolute = Path.Combine(_dir, "elsewhere");
+        var path = Write(
+            ConfigLoader.ProjectFileName,
+            $$"""{ "code": { "gtagsRoot": "{{absolute.Replace("\\", "\\\\")}}" } }""");
+
+        var loaded = ConfigLoader.LoadFrom(new[] { path });
+
+        Assert.Equal(absolute, loaded.Config.Code.GtagsRoot);
+    }
+
+    [Fact]
     public void envdte_の_progId_は既定で未指定になる()
     {
         // ADR 0002: 版数を固定せず ROT から自動検出する

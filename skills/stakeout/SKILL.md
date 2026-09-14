@@ -83,6 +83,10 @@ stakeout run-until 'state.c:142' --cond 'g_ctx.state == 7' \
 1 回で行う。**この 1 コマンドで済むことを、`bp set` → `continue` → `wait` → `stack` と
 分けて打たない。**
 
+位置は、読んだソースのフルパスで書くのが確実である。ファイル名だけだと、Visual Studio が
+開いている同名の別ファイルに解決されることがある。stakeout は結び付かなければ張り直しを試み、
+それでも駄目なら `NOT_FOUND` を返す。**`NOT_FOUND` が返ったら、hint のとおりフルパスで打ち直す。**
+
 ### 5. 順序やタイミングの問題
 
 ```bash
@@ -110,6 +114,8 @@ stakeout step over --json && stakeout locals --json
 - **ポインタを `eval` で覗いて満足しない。** `stakeout dump <expr> --depth 2` で展開する
 - **C# のフレームは無視する。** `isExternal: true` が付いている
 - **`stack --all` を深く取らない。** 1 フレーム 4 ms。既定の深さ 5 で足りることが多い
+- **データブレークポイントに `--cond` を付けない。** 付けられない（`UNSUPPORTED`）。
+  値で絞るなら書き込む行に `run-until --cond`、誰が書いたかを知りたいなら `watch-until-change` を使う
 
 ## 式の書き方
 

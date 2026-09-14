@@ -183,7 +183,11 @@ internal sealed partial class BreakpointTracker
         HitCount: Safe(() => entry.Breakpoint.CurrentHits),
         BreakWhenHit: true,
         TraceExpressions: null,
-        Verified: Safe(() => entry.Breakpoint.Enabled, false),
+        // Enabled は「無効化されていない」を表すだけで、コードに結び付いたかは表さない。
+        // 結び付いた行ブレークポイントには子（束縛された位置）ができる（ADR 0023）
+        Verified: entry.Kind == BreakpointKind.Data
+            ? Safe(() => entry.Breakpoint.Enabled, false)
+            : Safe(() => entry.Breakpoint.Children.Count, 0) > 0,
         VerifyMessage: Safe(() => entry.Breakpoint.Name));
 
     private static T Safe<T>(Func<T> get, T fallback = default!)

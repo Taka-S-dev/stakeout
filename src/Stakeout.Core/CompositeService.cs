@@ -136,7 +136,7 @@ public sealed class CompositeService
         var dataExpr = $"{address}";
 
         var breakpoint = await _backend.SetBreakpointAsync(
-            new BreakpointRequest(BreakpointKind.Data, dataExpr, Condition: address, DataSize: size), ct);
+            new BreakpointRequest(BreakpointKind.Data, dataExpr, DataSize: size, ExpectedAddress: address), ct);
 
         steps.Add("bp.data", $"#{breakpoint.BreakpointId} {dataExpr}");
 
@@ -402,7 +402,7 @@ public sealed class CompositeService
         steps.Add("resolve", $"{request.Symbol} -> {address} ({size} バイト)");
 
         var breakpoint = await _backend.SetBreakpointAsync(
-            new BreakpointRequest(BreakpointKind.Data, address, Condition: address, DataSize: size), ct);
+            new BreakpointRequest(BreakpointKind.Data, address, DataSize: size, ExpectedAddress: address), ct);
 
         steps.Add("bp.data", $"#{breakpoint.BreakpointId} {address}");
 

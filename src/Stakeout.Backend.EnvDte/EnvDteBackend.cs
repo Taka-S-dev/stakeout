@@ -31,7 +31,13 @@ public sealed class EnvDteBackend : IDebuggerBackend
     /// <summary>式評価のタイムアウト（design.md §15.2）。</summary>
     private const int EvaluationTimeoutMs = 5000;
 
-    private readonly StaDispatcher _sta = new("stakeout-envdte-sta");
+    private readonly StaDispatcher _sta;
+
+    /// <summary>調査対象のソースツリー（code.gtagsRoot）。行ブレークポイントの張り直し先を探すのに使う。</summary>
+    private readonly string? _sourceRoot;
+
+    /// <summary>行ブレークポイントがコードに結び付くまで待つ上限。</summary>
+    private static readonly TimeSpan BindTimeout = TimeSpan.FromMilliseconds(500);
     private readonly EnvDteConfig _config;
     private readonly Action<string> _log;
     private readonly StopScope _scope = new();
@@ -48,10 +54,45 @@ public sealed class EnvDteBackend : IDebuggerBackend
     private SessionInfo? _session;
     private StopEvent? _lastStop;
 
-    public EnvDteBackend(EnvDteConfig config, Action<string>? log = null)
+    public EnvDteBackend(EnvDteConfig config, Action<string>? log = null, string? sourceRoot = null)
     {
         _config = config;
         _log = log ?? (_ => { });
+        _sourceRoot = sourceRoot;
+        _sta = new StaDispatcher("stakeout-envdte-sta", TranslateComFailure);
+    }
+
+    /// <summary>
+    /// STA で起きた COM の失敗を、エージェントが次の一手を決められるエラーにする。
+    ///
+    /// 翻訳しないと RpcHandlers で INTERNAL になり、hint は「ログを見よ」だけになる。
+    /// 実機では、pause で開いた「ソース ファイルの検索」ダイアログのせいで
+    /// 以降の全操作が RPC_E_CALL_REJECTED になり、INTERNAL が並んだ。
+    /// **ダイアログは attach の後にも出る。** attach 前の判定（ADR 0004）だけでは足りない。
+    /// </summary>
+    private Exception TranslateComFailure(Exception ex)
+    {
+        if (ex is not System.Runtime.InteropServices.COMException)
+        {
+            return ex;
+        }
+
+        // 拒否されたときだけ、COM を使わずに（Win32 で）ダイアログを探す
+        if (ComErrors.IsBusy(ex) && _vs is { } vs)
+        {
+            var readiness = VisualStudioReadinessCheck.Check(vs.Pid);
+            if (!readiness.Ready && readiness.BlockingWindow is { } window)
+            {
+                return new BackendException(
+                    ErrorCodes.Precondition,
+                    $"{readiness.Reason} (pid {vs.Pid})",
+                    $"ダイアログ「{window}」を閉じてから再実行してください。" +
+                    "stakeout からは閉じられないので、ユーザーに閉じてもらってください。",
+                    ex);
+            }
+        }
+
+        return ComErrors.Translate(ex, "Visual Studio の操作", "不明");
     }
 
     public string Name => "envdte";
@@ -502,6 +543,17 @@ public sealed class EnvDteBackend : IDebuggerBackend
             if (request.Kind == BreakpointKind.Data)
             {
                 EnsureDataSlotAvailable();
+
+                // Add(Data:) には条件を渡していない。黙って捨てると、条件どおりに止まると
+                // 思い込んだまま書き込みのたびに止まる
+                if (request.Condition is { Length: > 0 })
+                {
+                    throw new BackendException(
+                        ErrorCodes.Unsupported,
+                        "データブレークポイントには条件を付けられません。",
+                        "値で絞るなら、書き込む行に run-until FILE:LINE --cond を使ってください。" +
+                        "誰が書いたかを知りたいだけなら watch-until-change を使ってください。");
+                }
             }
 
             // Add の戻り値は当てにならないので、前後の差分で判定する（ADR 0006）
@@ -520,12 +572,38 @@ public sealed class EnvDteBackend : IDebuggerBackend
                         : "ファイル名と行番号、または関数名が正しいか確認してください。");
             }
 
-            if (request.Kind == BreakpointKind.Data && request.Condition is { Length: > 0 } expected)
+            if (request.Kind == BreakpointKind.Line)
             {
-                // & を忘れた式が別アドレスを監視するのを弾く（ADR 0006 の罠 3）
-                foreach (var bp in added)
+                added = EnsureLineBreakpointBound(debugger, collection, request, added);
+            }
+
+            if (request.Kind == BreakpointKind.Data && request.ExpectedAddress is { Length: > 0 } expected)
+            {
+                // & を忘れた式が別アドレスを監視するのを弾く（ADR 0006 の罠 3）。
+                // **弾いたものは消す。** 残すと stakeout の管理外で 4 本しかない枠を塞ぎ、
+                // 同じアドレスへの次の要求が「作成できませんでした」で失敗し続ける
+                try
                 {
-                    BreakpointTracker.VerifyDataAddress(bp, expected);
+                    foreach (var bp in added)
+                    {
+                        BreakpointTracker.VerifyDataAddress(bp, expected);
+                    }
+                }
+                catch (BackendException)
+                {
+                    foreach (var bp in added)
+                    {
+                        try
+                        {
+                            bp.Delete();
+                        }
+                        catch (Exception ex) when (ex is not BackendException)
+                        {
+                            // 消せなくても、元の失敗を返すほうが大事
+                        }
+                    }
+
+                    throw;
                 }
             }
 
@@ -894,6 +972,132 @@ public sealed class EnvDteBackend : IDebuggerBackend
             $"ハードウェアデータブレークポイントを使い切っています " +
             $"({Capabilities.DataBreakpointSlots} 本)。",
             "stakeout bp list で確認し、不要なデータブレークポイントを stakeout bp rm で削除してください。");
+    }
+
+    /// <summary>
+    /// 行ブレークポイントがコードに結び付いたかを確かめ、結び付かなければ別の候補で張り直す（ADR 0023）。
+    ///
+    /// ファイル名だけの指定は、VS が開いている同名の別ファイルに解決されることがある。
+    /// そのブレークポイントは Enabled のまま一度も止まらず、エラーにもならない。
+    /// 結び付いたかは、子（束縛された位置）の有無で分かる。
+    /// </summary>
+    private List<DteBreakpoint> EnsureLineBreakpointBound(
+        Debugger3 debugger, Breakpoints collection, BreakpointRequest request, List<DteBreakpoint> added)
+    {
+        // デバッグしていなければ、何にも結び付かないのが正常
+        if (debugger.CurrentMode == dbgDebugMode.dbgDesignMode || WaitBound(added))
+        {
+            return added;
+        }
+
+        var (file, line) = SplitFileLine(request.Location);
+        var resolved = added.Select(bp => ReadQuietly(() => bp.File)).FirstOrDefault(f => f is { Length: > 0 });
+
+        foreach (var candidate in SourceFileCandidates.For(file, _sourceRoot, OpenDocumentPaths()))
+        {
+            if (string.Equals(candidate, resolved, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var before = BreakpointTracker.Snapshot(collection);
+            ComRetry.Run(
+                () => collection.Add(
+                    File: candidate,
+                    Line: line,
+                    Condition: request.Condition ?? string.Empty,
+                    ConditionType: dbgBreakpointConditionType.dbgBreakpointConditionTypeWhenTrue),
+                $"bp set {candidate}:{line}");
+            var retry = BreakpointTracker.Added(collection, before);
+
+            if (WaitBound(retry))
+            {
+                _log($"bp {request.Location}: {resolved ?? "(不明)"} に結び付かず、{candidate} で張り直した");
+                DeleteQuietly(added);
+                return retry;
+            }
+
+            DeleteQuietly(retry);
+        }
+
+        // 結び付かないブレークポイントを残さない。残すと run-until が時間切れまで黙って待つ
+        DeleteQuietly(added);
+
+        throw new BackendException(
+            ErrorCodes.NotFound,
+            $"{request.Location} はどのモジュールのコードにも結び付きませんでした" +
+            (resolved is null ? "。" : $"（Visual Studio は {resolved} に解決しました）。"),
+            "ファイルをフルパスで指定してください。ファイル名だけだと、Visual Studio が開いている同名の別ファイルに" +
+            "解決されることがあります。対象の DLL がまだ読み込まれていないなら、読み込まれてから張り直してください。");
+    }
+
+    private static bool WaitBound(List<DteBreakpoint> breakpoints)
+    {
+        var deadline = Environment.TickCount64 + (long)BindTimeout.TotalMilliseconds;
+
+        while (true)
+        {
+            if (breakpoints.Any(bp => ReadQuietly(() => bp.Children.Count, 0) > 0))
+            {
+                return true;
+            }
+
+            if (Environment.TickCount64 >= deadline)
+            {
+                return false;
+            }
+
+            System.Threading.Thread.Sleep(50);
+        }
+    }
+
+    private List<string> OpenDocumentPaths()
+    {
+        var paths = new List<string>();
+
+        try
+        {
+            foreach (Document document in _dte!.Documents)
+            {
+                if (ReadQuietly(() => document.FullName) is { Length: > 0 } path)
+                {
+                    paths.Add(path);
+                }
+            }
+        }
+        catch (Exception ex) when (ex is not BackendException)
+        {
+            // 開いているドキュメントが読めなくても、索引ルートからは探せる
+        }
+
+        return paths;
+    }
+
+    private static void DeleteQuietly(IEnumerable<DteBreakpoint> breakpoints)
+    {
+        foreach (var bp in breakpoints)
+        {
+            try
+            {
+                bp.Delete();
+            }
+            catch (Exception ex) when (ex is not BackendException)
+            {
+                // 消せなくても、呼び出し側に返す結果のほうが大事
+            }
+        }
+    }
+
+    private static T ReadQuietly<T>(Func<T> read, T fallback = default!)
+    {
+        try
+        {
+            return read();
+        }
+        catch (Exception ex) when (ex is not BackendException)
+        {
+            return fallback;
+        }
     }
 
     private static void AddBreakpoint(Breakpoints collection, BreakpointRequest request)

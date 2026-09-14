@@ -20,8 +20,13 @@ internal sealed class StaDispatcher : IDisposable
 
     private OleMessageFilter? _filter;
 
-    public StaDispatcher(string name)
+    /// <summary>作業項目の例外を、呼び出し側へ返す前に翻訳する。null なら素通し。</summary>
+    private readonly Func<Exception, Exception>? _translate;
+
+    public StaDispatcher(string name, Func<Exception, Exception>? translate = null)
     {
+        _translate = translate;
+
         _thread = new Thread(Run)
         {
             Name = name,
@@ -62,11 +67,29 @@ internal sealed class StaDispatcher : IDisposable
             }
             catch (Exception ex)
             {
-                completion.TrySetException(ex);
+                completion.TrySetException(Translate(ex));
             }
         });
 
         return completion.Task;
+    }
+
+    /// <summary>翻訳そのものが失敗したら、元の例外を返す。原因を翻訳の失敗で上書きしない。</summary>
+    private Exception Translate(Exception ex)
+    {
+        if (_translate is null)
+        {
+            return ex;
+        }
+
+        try
+        {
+            return _translate(ex);
+        }
+        catch
+        {
+            return ex;
+        }
     }
 
     /// <summary>戻り値の無い版。</summary>

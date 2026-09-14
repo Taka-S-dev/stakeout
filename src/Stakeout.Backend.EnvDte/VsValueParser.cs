@@ -91,6 +91,17 @@ public static class VsValueParser
 
         var text = display.TrimStart();
 
+        // メンバのアドレスは NativeLib.dll!0x00007ffa... {値} のように、モジュール名が前に付く（実機で確認）。
+        // 前置きはモジュール名に使う文字（英数字 _ . -）だけに限る。
+        // "hello!0x1234" のような文字列の値を、誤ってアドレスにしない
+        var bang = text.IndexOf('!');
+        if (bang > 0
+            && text[..bang].All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '.' or '-')
+            && text[(bang + 1)..].StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        {
+            text = text[(bang + 1)..];
+        }
+
         if (!text.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
         {
             return false;

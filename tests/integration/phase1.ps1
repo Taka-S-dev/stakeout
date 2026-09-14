@@ -349,13 +349,31 @@ try {
         }
     }
 
-    Step 'デタッチしても Target が生きている' {
-        Dbg detach | Out-Null
-        Assert ($script:lastExit -eq 0) 'detach が失敗した'
+    if ($Bug -eq 'BUG_05') {
+        # 未処理のアクセス違反で止まったままデタッチすると、例外は Target に戻り、Target は自分のバグで落ちる。
+        # これは stakeout が殺したのではない。「生きている」を期待すると毎回落ちる（2026-09-15 に 2 回続けて確認）。
+        # 代わりに、落ちた理由がそのアクセス違反であることを確かめる
+        Step 'デタッチすると Target は自分のアクセス違反で終わる' {
+            Dbg detach | Out-Null
+            Assert ($script:lastExit -eq 0) 'detach が失敗した'
 
-        Start-Sleep -Seconds 1
-        $script:harnessProcess.Refresh()
-        Assert (-not $script:harnessProcess.HasExited) 'デタッチで Target が死んだ'
+            $exited = $script:harnessProcess.WaitForExit(10000)
+            Assert $exited 'アクセス違反で止まっていたのに、デタッチ後も終わらない'
+
+            $code = '0x{0:X8}' -f $script:harnessProcess.ExitCode
+            Write-Host "  exit code: $code"
+            Assert ($code -eq '0xC0000005') "アクセス違反以外の理由で終わった: $code"
+        }
+    }
+    else {
+        Step 'デタッチしても Target が生きている' {
+            Dbg detach | Out-Null
+            Assert ($script:lastExit -eq 0) 'detach が失敗した'
+
+            Start-Sleep -Seconds 1
+            $script:harnessProcess.Refresh()
+            Assert (-not $script:harnessProcess.HasExited) 'デタッチで Target が死んだ'
+        }
     }
 }
 finally {

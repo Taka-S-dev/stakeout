@@ -17,7 +17,7 @@ public sealed class DaemonState : IAsyncDisposable
         ConfigPaths = config.LoadedPaths;
         Log = log;
         StartedAt = startedAt;
-        Group = new SessionGroup(Config, log.Daemon);
+        Group = new SessionGroup(Config, log.Daemon, ConfigPaths);
     }
 
     public StakeoutConfig Config { get; }

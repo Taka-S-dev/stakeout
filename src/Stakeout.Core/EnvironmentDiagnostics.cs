@@ -107,7 +107,7 @@ public static class EnvironmentDiagnostics
     }
 
     /// <summary>Q6: cdb.exe / dbgeng.dll の有無。</summary>
-    public static Diagnosis DebuggingTools(DbgEngConfig config)
+    public static Diagnosis DebuggingTools(DbgEngConfig config, string backend)
     {
         var found = new List<string>();
 
@@ -120,6 +120,16 @@ public static class EnvironmentDiagnostics
             }
         }
 
+        return DebuggingTools(found, Path.Combine(Environment.SystemDirectory, "dbgeng.dll"), backend);
+    }
+
+    /// <summary>
+    /// 見つかった dbgeng.dll から Q6 に答える。
+    /// **使っていない Backend の制約を「注意」として出さない。** envdte で調べているのに
+    /// dbgeng の注意が並ぶと、今の接続が失敗しているように読める（実機でそう読まれた）。
+    /// </summary>
+    public static Diagnosis DebuggingTools(IReadOnlyList<string> found, string systemDbgEng, string backend)
+    {
         if (found.Count == 0)
         {
             return new Diagnosis("Q6", "cdb.exe / dbgeng.dll の有無",
@@ -129,8 +139,16 @@ public static class EnvironmentDiagnostics
                 "現状は EnvDTE Backend だけで動きます。");
         }
 
-        var system = Path.Combine(Environment.SystemDirectory, "dbgeng.dll");
-        var onlySystem = found.All(f => string.Equals(f, system, StringComparison.OrdinalIgnoreCase));
+        var onlySystem = found.All(f => string.Equals(f, systemDbgEng, StringComparison.OrdinalIgnoreCase));
+
+        if (onlySystem && !string.Equals(backend, "dbgeng", StringComparison.OrdinalIgnoreCase))
+        {
+            return new Diagnosis("Q6", "cdb.exe / dbgeng.dll の有無",
+                DiagnosisStatus.Answered, "System32 の同梱版だけがあります。",
+                string.Join(", ", found),
+                $"今の Backend は {backend} なので、この調査には影響しません。" +
+                "--backend dbgeng を使うときは Debugging Tools for Windows が要ります（ADR 0019）。");
+        }
 
         return new Diagnosis("Q6", "cdb.exe / dbgeng.dll の有無",
             onlySystem ? DiagnosisStatus.Caution : DiagnosisStatus.Answered,

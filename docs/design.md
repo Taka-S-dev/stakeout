@@ -553,7 +553,7 @@ VS と stakeout の昇格レベルが違うと COM が無言で失敗する。`d
 | Evaluate | `Debugger2.GetExpression2(expr, UseAutoExpandRules:true, TreatAsStatement:false, Timeout)` |
 | Expand | `Expression.DataMembers` |
 | ReadMemory | 直接 API なし。`*(unsigned char(*)[N])(ADDR)` の式評価で代替（遅い） |
-| Breakpoint(Line) | `Breakpoints.Add(File:, Line:, Condition:, ConditionType:)` |
+| Breakpoint(Line) | `Breakpoints.Add(File:, Line:, Condition:, ConditionType:)`。**作成後に子（束縛位置）の有無で結び付きを確かめる**（ADR 0023、§10.5.2） |
 | Breakpoint(Function) | `Breakpoints.Add(Function:)` |
 | Breakpoint(Data) | `Breakpoints.Add(Data:"{,,<module>}&expr", DataCount:N)`。**使えることを確認済み**。ただし罠が 3 つある（ADR 0006、下記） |
 | Tracepoint | `Breakpoint2.BreakWhenHit=false`, `Breakpoint2.Message="{expr1} {expr2}"`。**機能するが 2.5〜6 hits/s しか出ない**（ADR 0007、§10.6） |
@@ -565,8 +565,26 @@ VS と stakeout の昇格レベルが違うと COM が無言で失敗する。`d
 1. **データ式は現在のフレームのスコープで解決される。** 別モジュールのグローバルは、そのモジュールのフレームで止まっていないと `0x89711010` で拒否される。必ずモジュール修飾 `{,,<module>}&<expr>` の形で組み立てる
 2. **`Breakpoints.Add` は作成しても空のコレクションを返すことがある。** 戻り値を信用せず、**追加前後の `Debugger.Breakpoints` をスナップショットして差分を取る**。信用すると「作れていない」と誤認して重複作成し、4 本しかないハードウェアデータ BP を食い潰す
 3. **誤ったデータ式が、黙って別のアドレスを監視する。** `&` を忘れた `Data:"g_shared.counter"` は例外を出さず、counter の**値**をアドレスとして解釈した BP を作った。作成後に BP 名からアドレスを抜き、`&expr` の評価結果と一致するか**必ず検証**し、違えば削除して `BACKEND` エラーにする
+   - 期待アドレスは `BreakpointRequest.ExpectedAddress` で渡す。`Condition` に入れると利用者の条件式と取り違える（ADR 0023）
+   - **削除し忘れると、管理外の BP が同じアドレスへの以後の要求をすべて「作成できない」にする**（実際に起きた）
 
 ハードウェアデータ BP は x64 で 4 本。stakeout は自分が張った本数を数え、超える要求は `UNSUPPORTED` + hint で断る。データ BP を張ったままデタッチしても Target は生き残ることを確認済み。
+
+データ BP に条件は付けない。`Add(Data:)` には条件を渡しておらず、付いていれば作る前に `UNSUPPORTED` で断る（ADR 0023）。
+
+#### 10.5.2 行ブレークポイントの結び付き（ADR 0023）
+
+**ファイル名だけの指定は、VS が開いている同名の別ファイルに解決されることがある。** そのブレークポイントは `Enabled` のまま一度も止まらず、エラーにもならない。削除済みの作業コピーを開いたままの VS で実際に起きた。
+
+- 結び付いた行ブレークポイントには子（束縛された位置）ができる。作成後 500 ms 待っても子が無ければ、`code.gtagsRoot` の下の同名ファイル → VS が開いているドキュメント（存在するもの）の順にフルパスで張り直す
+- どれも結び付かなければ、作ったものを消して `NOT_FOUND`。hint に VS が解決した先を入れる
+- フルパスで指定されたときは張り替えない。デザインモードでは確かめない
+- `verified` は行・関数 BP では子の有無を返す（`Enabled` ではない）
+- 未ロードの DLL に先に張っておく使い方はできない
+
+#### 10.5.3 attach 後の COM の失敗（ADR 0023）
+
+モーダルダイアログは attach の後にも出る（例: pause で開く「ソース ファイルの検索」）。STA で起きた COM の失敗は `StaDispatcher` で翻訳し、`RPC_E_CALL_REJECTED` のときは Win32 でダイアログを探して、あれば `PRECONDITION` とそのタイトルを返す。翻訳しないと `INTERNAL` になり、エージェントは次の一手を決められない。
 
 ### 10.6 Tracepoint の出力回収
 
@@ -769,7 +787,9 @@ CREATE INDEX ix_events_run_thread ON events(run_id, thread_id);
 
 ## 16. 設定ファイル
 
-探索順: `./.stakeout.json` → `%APPDATA%\stakeout\stakeout.json`。後者を前者で上書き。
+探索順: `%APPDATA%\stakeout\stakeout.json` → `.stakeout.json`。後者で前者を上書き。
+
+`.stakeout.json` は、デーモンの作業ディレクトリから**親へ遡って最も近いもの**を読む（git と同じ）。設定内の相対パス（`code.gtagsRoot`）は、それを書いた設定ファイルのディレクトリを基準に解決する（ADR 0023）。作業ディレクトリ直下しか見ないと、エージェントが `cd` した先で自動起動したデーモンが設定を読まず、attach が `DENIED` になる。
 
 ```jsonc
 {

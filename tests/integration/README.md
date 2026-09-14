@@ -6,7 +6,10 @@
 
 1. `dotnet build`
 2. `samples/target/build.ps1 -Bug <BUG_01|BUG_03|BUG_04|BUG_05>`（必要なものだけ）
-3. `samples/target` で `gtags`（phase4 のみ）
+   - **ソースを変えたら作り直す。** 古い PDB はチェックサムが合わず、VS は止まるたびに
+     「ソース ファイルの検索」ダイアログを出して DTE を塞ぐ。ブレークポイントも結び付かず `NOT_FOUND` になる
+     （2026-09-15 に 5 本とも落ちた原因）
+3. `samples/target` で `gtags`（phase4 のみ。ソースを変えたら作り直す）
 4. Visual Studio を起動し、**スタートウィンドウを抜けて、モーダルダイアログが無い状態**にする
    - この状態でないと DTE は一切応答しない（ADR 0004）
 

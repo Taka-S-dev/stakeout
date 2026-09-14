@@ -60,6 +60,9 @@ public sealed class VsValueParserTests
     [InlineData("0x7ff6a2c31040 <g_shared>", 0x7ff6a2c31040UL)]
     [InlineData("00007ff6`a2c31040", 0UL)]
     [InlineData("0x00007ff6`a2c31040", 0x00007ff6a2c31040UL)]
+    // 構造体メンバのアドレス（&g_ctx.inner.flags）は、実機でモジュール名が前に付いた
+    [InlineData("NativeLib.dll!0x00007ffafdf79b4c {2779096485}", 0x00007ffafdf79b4cUL)]
+    [InlineData("\"hello!0x1234\"", 0UL)]
     public void 値の先頭にあるアドレスを取り出す(string display, ulong expected)
     {
         var ok = VsValueParser.TryExtractAddress(display, out var address);

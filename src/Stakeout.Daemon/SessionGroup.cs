@@ -23,10 +23,14 @@ public sealed class SessionGroup : IAsyncDisposable
 
     private IDebuggerBackend? _backend;
 
-    public SessionGroup(StakeoutConfig config, Action<string> log)
+    /// <summary>読み込んだ設定ファイル。拒否の理由を説明するのに使う。</summary>
+    private readonly IReadOnlyList<string> _configPaths;
+
+    public SessionGroup(StakeoutConfig config, Action<string> log, IReadOnlyList<string>? configPaths = null)
     {
         _config = config;
         _log = log;
+        _configPaths = configPaths ?? Array.Empty<string>();
     }
 
     /// <summary>現在の Backend。未アタッチなら <see cref="NullBackend"/> を返す。</summary>
@@ -231,14 +235,33 @@ public sealed class SessionGroup : IAsyncDisposable
         throw new BackendException(
             ErrorCodes.Denied,
             $"{name} (pid {pid}) はアタッチが許可されていません。",
-            _config.AllowProcesses.Count == 0
-                ? "allowProcesses が空です。.stakeout.json の allowProcesses に対象を追加してください（空は全拒否です）。"
-                : $"allowProcesses に追加してください。現在の設定: {string.Join(", ", _config.AllowProcesses)}");
+            DeniedHint());
+    }
+
+    /// <summary>
+    /// 拒否の理由。**設定ファイルを読んでいないのか、読んだが許可していないのかを分けて言う。**
+    /// 前者を「allowProcesses が空」とだけ言うと、エージェントは設定ファイルを読みに行き、
+    /// そこには許可が書いてあるので混乱する（評価でデーモンが別のディレクトリで起動したときに実際に起きた）。
+    /// </summary>
+    private string DeniedHint()
+    {
+        if (!_configPaths.Any(p => Path.GetFileName(p) == ConfigLoader.ProjectFileName))
+        {
+            return $"{ConfigLoader.ProjectFileName} が読み込まれていません（デーモンの作業ディレクトリ: " +
+                   $"{Environment.CurrentDirectory}、およびその親にありません）。" +
+                   $"{ConfigLoader.ProjectFileName} のあるディレクトリで stakeout daemon restart してください。";
+        }
+
+        return _config.AllowProcesses.Count == 0
+            ? $"allowProcesses が空です（読み込んだ設定: {string.Join(", ", _configPaths)}）。" +
+              "allowProcesses に対象を追加してください（空は全拒否です）。"
+            : $"allowProcesses に追加してください。現在の設定: {string.Join(", ", _config.AllowProcesses)}" +
+              $"（読み込んだ設定: {string.Join(", ", _configPaths)}）";
     }
 
     private IDebuggerBackend CreateBackend(string name, EnvDteConfig envDte) => name.ToLowerInvariant() switch
     {
-        "envdte" => new EnvDteBackend(envDte, _log),
+        "envdte" => new EnvDteBackend(envDte, _log, _config.Code.GtagsRoot),
         "null" => new NullBackend(),
         "dbgeng" => throw BackendException.Unsupported(
             "DbgEng Backend",

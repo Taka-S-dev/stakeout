@@ -29,8 +29,28 @@ public static class ConfigLoader
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "stakeout",
                 UserFileName),
-            Path.Combine(workingDirectory, ProjectFileName),
+            FindProjectFile(workingDirectory) ?? Path.Combine(workingDirectory, ProjectFileName),
         };
+
+    /// <summary>
+    /// 作業ディレクトリから親へ遡って、最も近い <c>.stakeout.json</c> を探す（ADR 0023）。見つからなければ null。
+    ///
+    /// 直下しか見ないと、エージェントが <c>cd</c> した先で自動起動したデーモンが設定を読まず、
+    /// attach が DENIED になる（評価で実際に起きた）。
+    /// </summary>
+    public static string? FindProjectFile(string workingDirectory)
+    {
+        for (var dir = new DirectoryInfo(workingDirectory); dir is not null; dir = dir.Parent)
+        {
+            var candidate = Path.Combine(dir.FullName, ProjectFileName);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
 
     /// <summary>既定の探索順で読み込む。</summary>
     public static LoadedConfig Load(string workingDirectory) =>
@@ -44,6 +64,9 @@ public static class ConfigLoader
     {
         var merged = new JsonObject();
         var loaded = new List<string>();
+
+        // code.gtagsRoot を最後に書いた設定ファイルのディレクトリ。相対パスの基準にする
+        string? gtagsBase = null;
 
         foreach (var path in pathsLowestPriorityFirst)
         {
@@ -73,6 +96,11 @@ public static class ConfigLoader
 
             Merge(merged, layer);
             loaded.Add(path);
+
+            if (layer["code"] is JsonObject code && code["gtagsRoot"] is JsonValue root && root.TryGetValue<string>(out _))
+            {
+                gtagsBase = Path.GetDirectoryName(Path.GetFullPath(path));
+            }
         }
 
         StakeoutConfig config;
@@ -86,6 +114,16 @@ public static class ConfigLoader
                 loaded.Count > 0 ? loaded[^1] : "(none)",
                 $"設定の型が合わない: {ex.Message}",
                 ex);
+        }
+
+        // 相対パスは、それを書いた設定ファイルの場所を基準にする（ADR 0023）。
+        // 親から見つけた設定の相対パスを作業ディレクトリ基準で解くと、また外れる
+        if (config.Code.GtagsRoot is { Length: > 0 } gtagsRoot && !Path.IsPathRooted(gtagsRoot) && gtagsBase is not null)
+        {
+            config = config with
+            {
+                Code = config.Code with { GtagsRoot = Path.GetFullPath(Path.Combine(gtagsBase, gtagsRoot)) },
+            };
         }
 
         return new LoadedConfig(config, loaded);
