@@ -28,7 +28,7 @@ stakeout run-until 'state.c:142' --cond 'g_ctx.state == 7' --expr 'g_ctx.tick'
 stakeout watch-until-change '{,,NativeLib.dll}g_shared.counter'
 stakeout find-corruption '{,,NativeLib.dll}g_shared.counter'
 stakeout dump 'g_ctx' --depth 2
-stakeout mem '&g_ctx' -n 64            # 生のメモリ（型が信用できないとき。実機未検証）
+stakeout mem '&g_ctx' -n 64            # 生のメモリ（型が信用できないとき）
 stakeout task-map                      # スレッドとタスク名の対応
 stakeout code writers g_shared.counter # 静的な書き込み候補（gtags）
 stakeout doctor                        # この環境で何が分かっていて何が分からないか
@@ -133,8 +133,8 @@ Invoke-WebRequest https://dot.net/v1/dotnet-install.ps1 -OutFile dotnet-install.
 }
 ```
 
-`stakeout` は**実行したディレクトリ**から `.stakeout.json` を探します。
-調査対象のリポジトリ直下に置き、そこで実行してください。
+`stakeout` は実行したディレクトリから**親へ遡って**最も近い `.stakeout.json` を読みます（git と同じ）。
+調査対象のリポジトリ直下に置けば、サブディレクトリで実行しても見つかります。
 
 ### 5. Visual Studio を開く
 
@@ -163,8 +163,10 @@ stakeout doctor                   # ここから始める
 - **実行に**: .NET 8 Desktop Runtime。デーモンは `Microsoft.WindowsDesktop.App` を
   要求するので、`Microsoft.NETCore.App` だけでは起動しません
 - Visual Studio。ProgID は固定せず、起動中のものを ROT から自動検出します（ADR 0002）。
-  **動かして確認したのは DTE 18.0 の 1 版だけです。** 設計上は 2019（DTE 16.0）以降を
-  想定していますが、そちらは未検証です（ADR 0001）
+  動かして確認したのは 2019（DTE 16.0、x86 対象）と 2026（DTE 18.0、x64 対象）です。
+  統合テストと評価は 2026 で回しています
+- Visual Studio が管理者で動いている場合、デーモンも管理者になります。stakeout を
+  通常権限のシェル（エージェント）から使うには、ユーザー設定で接続を開きます（下記「設定」）
 - GNU GLOBAL（`code *` を使う場合）
 
 Visual Studio がスタートウィンドウのままだったり、モーダルダイアログを表示していると、
@@ -190,8 +192,17 @@ stakeout-mcp.exe --tools    # 道具の定義とその大きさを出す
 
 ## 設定
 
-`./.stakeout.json` → `%APPDATA%\stakeout\stakeout.json` の順で探し、前者が勝ちます。
+`%APPDATA%\stakeout\stakeout.json`（ユーザー設定）の上に `.stakeout.json`（プロジェクト設定）を重ねます。
 入れ子は深くマージされるので、`limits.waitSec` だけを上書きしても他の既定値は残ります。
+
+管理者で動くデーモンに通常権限のシェルから繋ぐには、**ユーザー設定に**次を書きます
+（プロジェクト設定に書くとデーモンは起動しません。クローンしただけで管理者デバッガへの
+経路が開くのを防ぐためです。ADR 0024）。
+
+```jsonc
+// %APPDATA%\stakeout\stakeout.json
+{ "pipe": { "allowUnelevatedClients": true } }
+```
 
 ```jsonc
 {
@@ -211,11 +222,12 @@ stakeout-mcp.exe --tools    # 道具の定義とその大きさを出す
 ## 検証
 
 ```
-pwsh tests/run.ps1                                    # 単体 190 件
+pwsh tests/run.ps1                                    # 単体 217 件
 pwsh tests/integration/phase1.ps1 -VsPid <devenv pid> # アタッチ〜デタッチ
 pwsh tests/integration/phase2.ps1 -VsPid <devenv pid> # 複合コマンドとページング
 pwsh tests/integration/phase4.ps1 -VsPid <devenv pid> # Code Index と find-corruption
 pwsh tests/integration/phase7.ps1 -VsPid <devenv pid> # MCP の会話
+pwsh tests/integration/elevation.ps1                  # 管理者デーモンへの接続（管理者シェルから）
 pwsh eval/run.ps1 -Case BUG_04 -VsPid <devenv pid>    # エージェントが解けるか
 ```
 

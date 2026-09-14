@@ -672,7 +672,7 @@ DbgEng のクライアントはスレッド親和性が強い。**セッショ�
 - `DataBreakpoint`: `IDebugBreakpoint2.SetDataParameters`
 - `Dump`: `IDebugClient.WriteDumpFile2`（`snapshot` コマンドで使う）
 - `ParallelSessions`: 可（セッションごとのスレッド）
-- `TTD`: `.run` ファイルを開ける（自宅環境向け。Phase 8）
+- `TTD`: `.run` ファイルを開ける（TTD が使える環境向け。Phase 8）
 
 ---
 
@@ -1055,7 +1055,7 @@ Claude Desktop 実機での確認は、この検証が通ったうえで別途�
 ### Phase 8 — 拡張（優先度順、必要になったら）
 
 - `build-mcp` 相当: MSBuild 呼び出し、検出ビルド構成の切替、`bisect-svn`
-- TTD（DbgEng で `.run` を開く。自宅環境）
+- TTD（DbgEng で `.run` を開く。TTD が使える環境）
 - 調査レポート生成（JSONL + Trace DB → Markdown）と課題管理システムへの起票
 - 付録 C（複数プロセス）
 
