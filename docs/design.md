@@ -528,6 +528,8 @@ stakeout daemon (start|stop|restart|status)
 
 VS と stakeout の昇格レベルが違うと COM が無言で失敗する。`daemon.status` で自プロセスの昇格状態を返し、ROT に VS が見えない場合のエラー hint に「昇格レベルを揃えよ」を入れる。
 
+揃えるのはデーモンと VS である。CLI（エージェント）は、ユーザー設定 `pipe.allowUnelevatedClients` を有効にすれば通常権限のままでよい（§16、ADR 0024）。既定では CLI もデーモンと同じ昇格レベルが要る。
+
 ### 10.4 アタッチ
 
 - `Debugger2.LocalProcesses` から pid で `Process2` を取得する
@@ -788,6 +790,13 @@ CREATE INDEX ix_events_run_thread ON events(run_id, thread_id);
 ## 16. 設定ファイル
 
 探索順: `%APPDATA%\stakeout\stakeout.json` → `.stakeout.json`。後者で前者を上書き。
+
+`pipe.allowUnelevatedClients` は**ユーザー設定にしか書けない**。`.stakeout.json` にあれば読み込みを止める（ADR 0024）。管理者で動くデーモンのパイプを、同じユーザーの通常権限プロセスに開く設定であり、クローンしたリポジトリの設定で勝手に開いてはいけない。有効にすると、パイプの所有者と ACL がユーザー本人の SID になり、接続ごとに相手の pid・実行ファイル・昇格状態をログに残す。
+
+```jsonc
+// %APPDATA%\stakeout\stakeout.json
+{ "pipe": { "allowUnelevatedClients": true } }
+```
 
 `.stakeout.json` は、デーモンの作業ディレクトリから**親へ遡って最も近いもの**を読む（git と同じ）。設定内の相対パス（`code.gtagsRoot`）は、それを書いた設定ファイルのディレクトリを基準に解決する（ADR 0023）。作業ディレクトリ直下しか見ないと、エージェントが `cd` した先で自動起動したデーモンが設定を読まず、attach が `DENIED` になる。
 

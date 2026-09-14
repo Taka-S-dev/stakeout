@@ -43,6 +43,25 @@ public sealed class DaemonClient
         CancellationToken ct)
     {
         var pipe = await ConnectAsync(autoStart, ct);
+        if (pipe is null && _ownershipRejection is { } rejection)
+        {
+            return CliResult.Failure(
+                ErrorCodes.DaemonUnreachable,
+                $"パイプ {_pipeName} に繋がりましたが、自分のデーモンと確かめられません。{rejection}",
+                "同名のパイプを別のプロセスが立てている可能性があります。STAKEOUT_PIPE で別の名前を使ってください。");
+        }
+
+        if (pipe is null && _accessDenied)
+        {
+            return CliResult.Failure(
+                ErrorCodes.DaemonUnreachable,
+                $"デーモンは動いていますが、接続を拒否されました (pipe: {_pipeName})。",
+                "デーモンとこのシェルの昇格レベルが違います。次のどちらかにしてください。" +
+                "(1) このコマンドを実行するシェル（エージェント）も管理者で起動する。" +
+                "(2) ユーザー設定 %APPDATA%\\stakeout\\stakeout.json に {\"pipe\": {\"allowUnelevatedClients\": true}} を書き、" +
+                "管理者のデーモンを起動し直す（ADR 0024）。");
+        }
+
         if (pipe is null)
         {
             var hint = _startupFailure is { Length: > 0 } failure
@@ -126,10 +145,17 @@ public sealed class DaemonClient
     /// <summary>自動起動したデーモンが即座に死んだ場合の、その理由。</summary>
     private string? _startupFailure;
 
+    /// <summary>
+    /// パイプはあるのに開けなかった。昇格レベルの違うデーモンが動いている。
+    /// **このとき 2 つ目のデーモンを起動しない。** 同じ名前のパイプを取り合うだけで、
+    /// 本当の原因（昇格レベル）が「起動に失敗した」に化ける。
+    /// </summary>
+    private bool _accessDenied;
+
     private async Task<NamedPipeClientStream?> ConnectAsync(bool autoStart, CancellationToken ct)
     {
         var pipe = await TryConnectAsync(TimeSpan.FromMilliseconds(300), ct);
-        if (pipe is not null || !autoStart)
+        if (pipe is not null || !autoStart || _accessDenied)
         {
             return pipe;
         }
@@ -214,6 +240,22 @@ public sealed class DaemonClient
                 await pipe.ConnectAsync(200, ct);
                 return pipe;
             }
+            catch (UnauthorizedAccessException)
+            {
+                await pipe.DisposeAsync();
+
+                // CurrentUserOnly の所有者検査に落ちただけかもしれない（管理者の CLI が
+                // 本人 SID 所有のパイプに繋ぐとき。ADR 0024）。検査を自前で行って繋ぎ直す
+                var verified = OperatingSystem.IsWindows() ? await TryConnectVerifiedAsync(ct) : null;
+                if (verified is not null)
+                {
+                    return verified;
+                }
+
+                // 待っても開けるようにはならない。すぐに諦めて理由を返す
+                _accessDenied = true;
+                return null;
+            }
             catch (Exception ex) when (ex is TimeoutException or IOException)
             {
                 await pipe.DisposeAsync();
@@ -226,6 +268,47 @@ public sealed class DaemonClient
             }
         }
     }
+
+    /// <summary>
+    /// CurrentUserOnly 無しで繋ぎ、ACL を自分で確かめる。自分のデーモンと確かめられなければ null。
+    /// 確かめずに繋ぐと、同名のパイプを立てた別プロセスにコマンドを送ることになる。
+    /// </summary>
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private async Task<NamedPipeClientStream?> TryConnectVerifiedAsync(CancellationToken ct)
+    {
+        var pipe = new NamedPipeClientStream(".", _pipeName, PipeDirection.InOut, PipeOptions.Asynchronous);
+
+        try
+        {
+            await pipe.ConnectAsync(200, ct);
+
+            using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+            var security = pipe.GetAccessControl();
+            var owner = security.GetOwner(typeof(System.Security.Principal.SecurityIdentifier)) as System.Security.Principal.SecurityIdentifier;
+            var rules = security
+                .GetAccessRules(true, true, typeof(System.Security.Principal.SecurityIdentifier))
+                .Cast<PipeAccessRule>()
+                .Select(r => ((System.Security.Principal.SecurityIdentifier)r.IdentityReference, r.AccessControlType));
+
+            var reason = PipeOwnershipCheck.Reject(identity.User!, owner, rules);
+            if (reason is null)
+            {
+                return pipe;
+            }
+
+            _ownershipRejection = reason;
+        }
+        catch (Exception ex) when (ex is TimeoutException or IOException or UnauthorizedAccessException)
+        {
+            // ACL そのものが拒否している。呼び出し側が昇格レベルの hint を返す
+        }
+
+        await pipe.DisposeAsync();
+        return null;
+    }
+
+    /// <summary>繋げたが、自分のデーモンと確かめられなかった理由。</summary>
+    private string? _ownershipRejection;
 
     /// <summary>デーモンを常駐モードで起動する。起動できなければ null。</summary>
     private static Process? TryStartDaemon()

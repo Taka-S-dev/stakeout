@@ -31,6 +31,23 @@ public sealed record StakeoutConfig
     public LimitsConfig Limits { get; init; } = new();
 
     public LogConfig Log { get; init; } = new();
+
+    public PipeConfig Pipe { get; init; } = new();
+}
+
+/// <summary>名前付きパイプの ACL（design.md §16、ADR 0024）。</summary>
+public sealed record PipeConfig
+{
+    /// <summary>
+    /// 管理者で動くデーモンに、同じユーザーの通常権限クライアントの接続を許す。
+    ///
+    /// 既定（false）では .NET の CurrentUserOnly を使う。管理者プロセスではこれが
+    /// Administrators グループ宛ての ACL になり、通常権限のトークンからは開けない。
+    /// true にすると ACL と所有者をユーザー本人の SID にする。
+    /// **ユーザー設定（%APPDATA%）でしか有効にできない。** リポジトリの設定で有効にできると、
+    /// クローンしただけで管理者デバッガへの経路が開く。
+    /// </summary>
+    public bool AllowUnelevatedClients { get; init; }
 }
 
 public sealed record EnvDteConfig

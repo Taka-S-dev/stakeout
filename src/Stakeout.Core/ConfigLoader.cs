@@ -94,6 +94,7 @@ public static class ConfigLoader
                 throw new ConfigException(path, ex.Message, ex);
             }
 
+            RejectUserOnlyKeys(path, layer);
             Merge(merged, layer);
             loaded.Add(path);
 
@@ -127,6 +128,27 @@ public static class ConfigLoader
         }
 
         return new LoadedConfig(config, loaded);
+    }
+
+    /// <summary>
+    /// ユーザー設定にしか書けない項目が、プロジェクト設定（<c>.stakeout.json</c>）にあれば止める（ADR 0024）。
+    /// 黙って無視すると「書いたのに効かない」になり、黙って効かせると「クローンしただけで
+    /// 管理者デバッガへの経路が開く」になる。どちらも避けて、理由を言って止まる。
+    /// </summary>
+    private static void RejectUserOnlyKeys(string path, JsonObject layer)
+    {
+        if (!string.Equals(Path.GetFileName(path), ProjectFileName, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        if (layer["pipe"] is JsonObject pipe && pipe.ContainsKey("allowUnelevatedClients"))
+        {
+            throw new ConfigException(
+                path,
+                "pipe.allowUnelevatedClients はユーザー設定（%APPDATA%\\stakeout\\stakeout.json）にしか書けません。" +
+                "リポジトリの設定で管理者デーモンへの接続を開かないためです（ADR 0024）");
+        }
     }
 
     /// <summary>

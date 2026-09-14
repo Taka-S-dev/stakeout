@@ -8,7 +8,8 @@ namespace Stakeout.Daemon;
 /// <summary>
 /// 名前付きパイプの待ち受け（design.md §7）。
 ///
-/// ACL は <see cref="PipeOptions.CurrentUserOnly"/> で現在ユーザーのみに絞る。
+/// ACL は既定で <see cref="PipeOptions.CurrentUserOnly"/>。<c>pipe.allowUnelevatedClients</c> のときは
+/// ユーザー本人の SID 宛てにする（<see cref="PipeAccess"/>、ADR 0024）。
 /// 接続は複数受ける（CLI が並行して呼ぶため）。1 接続 = 1 JsonRpc。
 /// </summary>
 public sealed class PipeServer
@@ -52,14 +53,12 @@ public sealed class PipeServer
             NamedPipeServerStream? pipe = null;
             try
             {
-                pipe = new NamedPipeServerStream(
-                    _pipeName,
-                    PipeDirection.InOut,
-                    MaxConcurrentConnections,
-                    PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+                pipe = PipeAccess.Create(_pipeName, MaxConcurrentConnections, _state.Config.Pipe.AllowUnelevatedClients);
 
                 await pipe.WaitForConnectionAsync(ct);
+
+                // 誰が繋いだかを必ず残す。ACL を本人宛てに緩めている構成では、これが監査の手がかりになる
+                _state.Log.Daemon(PipeAccess.DescribeClient(pipe));
                 await ServeAsync(pipe, ct);
             }
             catch (OperationCanceledException)

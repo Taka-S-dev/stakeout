@@ -157,6 +157,34 @@ public sealed class ConfigLoaderTests : IDisposable
     }
 
     [Fact]
+    public void allowUnelevatedClients_はプロジェクト設定に書くと止まる()
+    {
+        // クローンしただけで管理者デバッガへの経路が開いてはいけない（ADR 0024）
+        var path = Write(ConfigLoader.ProjectFileName, """{ "pipe": { "allowUnelevatedClients": true } }""");
+
+        var ex = Assert.Throws<ConfigException>(() => ConfigLoader.LoadFrom(new[] { path }));
+
+        Assert.Contains("allowUnelevatedClients", ex.Message);
+    }
+
+    [Fact]
+    public void allowUnelevatedClients_はユーザー設定なら効く()
+    {
+        var user = Write(ConfigLoader.UserFileName, """{ "pipe": { "allowUnelevatedClients": true } }""");
+        var project = Write(ConfigLoader.ProjectFileName, """{ "backend": "envdte" }""");
+
+        var loaded = ConfigLoader.LoadFrom(new[] { user, project });
+
+        Assert.True(loaded.Config.Pipe.AllowUnelevatedClients);
+    }
+
+    [Fact]
+    public void allowUnelevatedClients_は既定で無効()
+    {
+        Assert.False(ConfigLoader.LoadFrom(Array.Empty<string>()).Config.Pipe.AllowUnelevatedClients);
+    }
+
+    [Fact]
     public void envdte_の_progId_は既定で未指定になる()
     {
         // ADR 0002: 版数を固定せず ROT から自動検出する

@@ -23,6 +23,11 @@ pwsh tests/integration/phase4.ps1 -VsPid <pid>
 pwsh tests/integration/phase7.ps1 -VsPid <pid>
 ```
 
+```powershell
+# 管理者のシェルから。管理者デーモンに通常権限の CLI が繋がるか（ADR 0024）。Visual Studio は要らない
+pwsh tests/integration/elevation.ps1
+```
+
 **1 本ずつ走らせること。** 続けて回すときは、前の実行のデーモンと Harness が
 終わってから次を始める。落ち切る前に次を起動すると、アタッチが競合して
 本来通る検証が落ちる（実際に 1 度そうなった）。

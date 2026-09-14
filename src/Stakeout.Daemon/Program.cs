@@ -38,7 +38,8 @@ internal static class Program
         log.Daemon(
             $"stakeout {StakeoutPaths.Version} started pid={Environment.ProcessId} pipe={pipeName} " +
             $"elevated={StakeoutPaths.IsElevated()} backend={config.Config.Backend} " +
-            $"config=[{string.Join(", ", config.LoadedPaths)}]");
+            $"config=[{string.Join(", ", config.LoadedPaths)}] " +
+            $"pipeAcl={(config.Config.Pipe.AllowUnelevatedClients ? "user-sid (allowUnelevatedClients)" : "CurrentUserOnly")}");
 
         // --detach のときはコンソールに何も書かない。自動起動した親（stakeout）が
         // 標準ストリームを切り離しているため、書いても誰も読まないバッファに溜まる
