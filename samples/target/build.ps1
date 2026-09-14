@@ -12,11 +12,19 @@ param(
 
     # 仕込みバグを 1 つ有効にする（design.md §18.1）。既定はバグ無し
     [ValidateSet('none', 'BUG_01', 'BUG_03', 'BUG_04', 'BUG_05')]
-    [string]$Bug = 'none'
+    [string]$Bug = 'none',
+
+    # NativeLib/ と Harness/ のあるディレクトリ。既定はこのスクリプトの隣。
+    # 評価スイートは、答えの手がかりを消した写しを渡す（ADR 0022）
+    [string]$SourceRoot,
+
+    # 出力先。既定は build/<arch>[-<bug>]/
+    [string]$OutDir
 )
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$sourceRoot = if ($SourceRoot) { (Resolve-Path $SourceRoot).Path } else { $root }
 
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 if (-not (Test-Path $vswhere)) { throw "vswhere.exe が見つからない: $vswhere" }
@@ -34,7 +42,7 @@ if (-not (Test-Path $vcvars)) { throw "vcvars が見つからない: $vcvars" }
 }
 
 $suffix = if ($Bug -eq 'none') { $Arch } else { "$Arch-$Bug" }
-$outDir = Join-Path $root "build\$suffix"
+$outDir = if ($OutDir) { [System.IO.Path]::GetFullPath($OutDir) } else { Join-Path $root "build\$suffix" }
 New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 Push-Location $outDir
 try {
@@ -48,11 +56,11 @@ try {
     }
 
     Write-Host "building NativeLib.dll ($Arch)"
-    & cl @cflags /LD "$root\NativeLib\nativelib.c" /Fe:NativeLib.dll /Fd:NativeLib.pdb
+    & cl @cflags /LD "$sourceRoot\NativeLib\nativelib.c" /Fe:NativeLib.dll /Fd:NativeLib.pdb
     if ($LASTEXITCODE -ne 0) { throw "NativeLib のビルドに失敗した ($LASTEXITCODE)" }
 
     Write-Host "building Harness.exe ($Arch)"
-    & cl @cflags "$root\Harness\harness.c" /Fe:Harness.exe /Fd:Harness.pdb /link NativeLib.lib
+    & cl @cflags "$sourceRoot\Harness\harness.c" /Fe:Harness.exe /Fd:Harness.pdb /link NativeLib.lib
     if ($LASTEXITCODE -ne 0) { throw "Harness のビルドに失敗した ($LASTEXITCODE)" }
 
     Write-Host "ok -> $outDir"
